@@ -59,6 +59,7 @@ func get(w http.ResponseWriter, r *http.Request) {
   }
 
   w.Header().Set("Content-Type", ctype)
+  w.Header().Set("Cache-Control", "public, max-age=300")
   w.Write(record.Data)
 }
 
