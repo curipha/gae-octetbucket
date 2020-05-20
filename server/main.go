@@ -83,12 +83,14 @@ func get(w http.ResponseWriter, r *http.Request) {
 func post(w http.ResponseWriter, r *http.Request) {
   file, header, err := r.FormFile(formarg)
   if err != nil {
+    log.Printf("Failed to parse a uploaded file: %v", err)
     http.Error(w, "Bad Request", http.StatusBadRequest)
     return
   }
 
   blob, err := ioutil.ReadAll(file)
   if err != nil {
+    log.Printf("Failed to read a uploaded file: %v", err)
     http.Error(w, "Bad Request", http.StatusBadRequest)
     return
   }
