@@ -98,9 +98,15 @@ func post(w http.ResponseWriter, r *http.Request) {
   fname := strings.TrimSpace(header.Filename)
   ctype := strings.TrimSpace(header.Header.Get("Content-Type"))
 
+  addr := r.Header.Get("X-Appengine-User-Ip")
+  if addr == "" {
+    log.Println("'X-Appengine-User-Ip' header is empty! Get remote address from 'X-Forwarded-For'.")
+    addr = strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]
+  }
+
   record := &Storage {
     Created:     time.Now(),
-    RemoteAddr:  r.RemoteAddr,
+    RemoteAddr:  addr,
     UserAgent:   strings.TrimSpace(r.Header.Get("User-Agent")),
     FileName:    fname,
     ContentType: ctype,
