@@ -21,6 +21,8 @@ var projectid = os.Getenv("GOOGLE_CLOUD_PROJECT")
 const kind    = "Storage"
 const formarg = "file"
 
+const getpoint = "r"
+
 type Storage struct {
   Created     time.Time
   RemoteAddr  string
@@ -32,9 +34,12 @@ type Storage struct {
 }
 
 func get(w http.ResponseWriter, r *http.Request) {
-  _, file := path.Split(r.URL.Path)
-
-  if len(file) < 1 {
+  dir, file := path.Split(r.URL.Path)
+  if strings.Trim(dir, "/") != getpoint {
+    http.NotFound(w, r)
+    return
+  }
+  if file == "" {
     http.Error(w, "Bad Request", http.StatusBadRequest)
     return
   }
@@ -130,7 +135,7 @@ func post(w http.ResponseWriter, r *http.Request) {
     }
   }
 
-  fmt.Fprintf(w, "https://%s/r/%s%s\n", r.Host, key, ext)
+  fmt.Fprintf(w, "https://%s/%s/%s%s\n", r.Host, getpoint, key, ext)
 }
 
 func main() {
