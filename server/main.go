@@ -1,18 +1,22 @@
 package main
 
 import (
+  "context"
   "crypto/sha256"
   "fmt"
   "io/ioutil"
+  "log"
   "mime"
   "net/http"
+  "os"
   "path"
   "strings"
   "time"
 
-  "google.golang.org/appengine"
-  "google.golang.org/appengine/datastore"
+  "cloud.google.com/go/datastore"
 )
+
+var projectid = os.Getenv("GOOGLE_CLOUD_PROJECT")
 
 const kind    = "Storage"
 const formarg = "file"
@@ -40,10 +44,18 @@ func get(w http.ResponseWriter, r *http.Request) {
 
   record := &Storage{}
 
-  ctx := appengine.NewContext(r)
-  err := datastore.Get(ctx, datastore.NewKey(ctx, kind, key, 0, nil), record)
+  ctx := context.Background()
+  client, err := datastore.NewClient(ctx, projectid)
   if err != nil {
-    http.Error(w, "Not Found", http.StatusNotFound)
+    log.Printf("Failed to create client: %v", err)
+    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    return
+  }
+
+  err = client.Get(ctx, datastore.NameKey(kind, key, nil), record)
+  if err != nil {
+    log.Printf("Failed to get the file from Datastore: %v", err)
+    http.NotFound(w, r)
     return
   }
 
@@ -92,9 +104,17 @@ func post(w http.ResponseWriter, r *http.Request) {
 
   key := fmt.Sprintf("%.6x", sha256.Sum256(blob)) // 12 chars
 
-  ctx := appengine.NewContext(r)
-  _, err = datastore.Put(ctx, datastore.NewKey(ctx, kind, key, 0, nil), record)
+  ctx := context.Background()
+  client, err := datastore.NewClient(ctx, projectid)
   if err != nil {
+    log.Printf("Failed to create client: %v", err)
+    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    return
+  }
+
+  _, err = client.Put(ctx, datastore.NameKey(kind, key, nil), record)
+  if err != nil {
+    log.Printf("Failed to store the file to Datastore: %v", err)
     http.Error(w, "Bad Request", http.StatusBadRequest)
     return
   }
@@ -113,7 +133,7 @@ func post(w http.ResponseWriter, r *http.Request) {
   fmt.Fprintf(w, "https://%s/r/%s%s\n", r.Host, key, ext)
 }
 
-func init() {
+func main() {
   http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
     switch r.Method {
     case "GET":
@@ -124,4 +144,17 @@ func init() {
       http.Error(w, "Not Implemented", http.StatusNotImplemented)
     }
   })
+
+
+  port := os.Getenv("PORT")
+  if port == "" {
+    port = "8080"
+    log.Printf("Defaulting to port %s", port)
+  }
+
+  log.Printf("Listening on port %s", port)
+  err := http.ListenAndServe(":" + port, nil)
+  if err != nil {
+    log.Fatal(err)
+  }
 }
