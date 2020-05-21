@@ -14,6 +14,7 @@ import (
   "time"
 
   "cloud.google.com/go/datastore"
+  "google.golang.org/api/iterator"
 )
 
 var projectid = os.Getenv("GOOGLE_CLOUD_PROJECT")
@@ -33,6 +34,13 @@ type Storage struct {
   Data        []byte
 }
 
+func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key) bool {
+  query := datastore.NewQuery(kind).Filter("__key__ =", key).Limit(1).KeysOnly()
+
+  _, err := client.Run(ctx, query).Next(nil)
+  return err != iterator.Done
+}
+
 func get(w http.ResponseWriter, r *http.Request) {
   dir, file := path.Split(r.URL.Path)
   if strings.Trim(dir, "/") != getpoint {
@@ -47,7 +55,6 @@ func get(w http.ResponseWriter, r *http.Request) {
   ext := path.Ext(file)
   key := file[:len(file) - len(ext)]
 
-  record := &Storage{}
 
   ctx := context.Background()
   client, err := datastore.NewClient(ctx, projectid)
@@ -57,7 +64,17 @@ func get(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  err = client.Get(ctx, datastore.NameKey(kind, key, nil), record)
+  // Check the existence firstly to reduce the cost (Key-only query is free!!)
+  dskey := datastore.NameKey(kind, key, nil)
+  if !keyexist(ctx, client, dskey) {
+    http.NotFound(w, r)
+    return
+  }
+
+
+  record := &Storage{}
+
+  err = client.Get(ctx, dskey, record)
   if err != nil {
     log.Printf("Failed to get the file from Datastore: %v", err)
     http.NotFound(w, r)
