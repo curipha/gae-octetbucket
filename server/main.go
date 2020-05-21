@@ -34,6 +34,16 @@ type Storage struct {
   Data        []byte
 }
 
+func remoteaddr(r *http.Request) string {
+  addr := r.Header.Get("X-Appengine-User-Ip")
+  if addr == "" {
+    log.Println("'X-Appengine-User-Ip' header is empty! Get remote address from 'X-Forwarded-For'.")
+    addr = strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]
+  }
+
+  return addr
+}
+
 func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key) bool {
   query := datastore.NewQuery(kind).Filter("__key__ =", key).Limit(1).KeysOnly()
 
@@ -115,15 +125,9 @@ func post(w http.ResponseWriter, r *http.Request) {
   fname := strings.TrimSpace(header.Filename)
   ctype := strings.TrimSpace(header.Header.Get("Content-Type"))
 
-  addr := r.Header.Get("X-Appengine-User-Ip")
-  if addr == "" {
-    log.Println("'X-Appengine-User-Ip' header is empty! Get remote address from 'X-Forwarded-For'.")
-    addr = strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]
-  }
-
   record := &Storage {
     Created:     time.Now(),
-    RemoteAddr:  addr,
+    RemoteAddr:  remoteaddr(r),
     UserAgent:   strings.TrimSpace(r.Header.Get("User-Agent")),
     FileName:    fname,
     ContentType: ctype,
@@ -133,6 +137,7 @@ func post(w http.ResponseWriter, r *http.Request) {
 
 
   key := fmt.Sprintf("%.6x", sha256.Sum256(blob)) // 12 chars
+
 
   ctx := context.Background()
   client, err := datastore.NewClient(ctx, projectid)
