@@ -132,14 +132,11 @@ func post(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-
   ext := path.Ext(fname)
-  if len(ext) < 2 {
+  if ext == "" {
     exts, err := mime.ExtensionsByType(ctype)
     if err == nil && len(exts) > 0 {
       ext = exts[0]
-    } else {
-      ext = ""
     }
   }
 
