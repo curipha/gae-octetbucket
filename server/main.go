@@ -125,17 +125,6 @@ func post(w http.ResponseWriter, r *http.Request) {
   fname := strings.TrimSpace(header.Filename)
   ctype := strings.TrimSpace(header.Header.Get("Content-Type"))
 
-  record := &Storage {
-    Created:     time.Now(),
-    RemoteAddr:  remoteaddr(r),
-    UserAgent:   strings.TrimSpace(r.Header.Get("User-Agent")),
-    FileName:    fname,
-    ContentType: ctype,
-    Size:        len(blob),
-    Data:        blob,
-  }
-
-
   key := fmt.Sprintf("%.6x", sha256.Sum256(blob)) // 12 chars
 
 
@@ -147,11 +136,25 @@ func post(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  _, err = client.Put(ctx, datastore.NameKey(kind, key, nil), record)
-  if err != nil {
-    log.Printf("Failed to store the file to Datastore: %v", err)
-    http.Error(w, "Bad Request", http.StatusBadRequest)
-    return
+  dskey := datastore.NameKey(kind, key, nil)
+  if !keyexist(ctx, client, dskey) {
+    // Put new record iff no data exists
+    record := &Storage {
+      Created:     time.Now(),
+      RemoteAddr:  remoteaddr(r),
+      UserAgent:   strings.TrimSpace(r.Header.Get("User-Agent")),
+      FileName:    fname,
+      ContentType: ctype,
+      Size:        len(blob),
+      Data:        blob,
+    }
+
+    _, err = client.Put(ctx, dskey, record)
+    if err != nil {
+      log.Printf("Failed to store the file to Datastore: %v", err)
+      http.Error(w, "Bad Request", http.StatusBadRequest)
+      return
+    }
   }
 
   ext := path.Ext(fname)
