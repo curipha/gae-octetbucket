@@ -51,7 +51,7 @@ func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key)
   return err != iterator.Done
 }
 
-func get(w http.ResponseWriter, r *http.Request) {
+func getdel(w http.ResponseWriter, r *http.Request, method string) {
   dir, file := path.Split(r.URL.Path)
   if strings.Trim(dir, "/") != getpoint {
     http.NotFound(w, r)
@@ -91,20 +91,52 @@ func get(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  ctype := mime.TypeByExtension(ext)
+  switch method {
+  case "GET":
+    ctype := mime.TypeByExtension(ext)
 
-  switch strings.SplitN(ctype, "/", 2)[0] {
-  case "text":
-    ctype = "text/plain"
-  case "audio", "video", "image":
-    break // kept as it is
-  default:
-    ctype = "application/octet-stream"
+    switch strings.SplitN(ctype, "/", 2)[0] {
+    case "text":
+      ctype = "text/plain"
+    case "audio", "video", "image":
+      break // kept as it is
+    default:
+      ctype = "application/octet-stream"
+    }
+
+    w.Header().Set("Content-Type", ctype)
+    w.Header().Set("Cache-Control", "public, max-age=300")
+    w.Write(record.Data)
+    return
+
+  case "DELETE":
+    if record.RemoteAddr == remoteaddr(r) {
+      err = client.Delete(ctx, dskey)
+      if err == nil {
+        log.Printf(
+          "File deleted. Created: %s, RemoteAddr: %s, UserAgent: %s, FileName: %s, ContentType: %s, Size: %d",
+          record.Created.Format(time.RFC3339),
+          record.RemoteAddr,
+          record.UserAgent,
+          record.FileName,
+          record.ContentType,
+          record.Size,
+        )
+
+        // This is not an error.
+        // Use http.Error here to just send the HTTP Status code and informational text back to users.
+        http.Error(w, "Accepted", http.StatusAccepted)
+        return
+      } else {
+        log.Printf("Failed to delete the file from Datastore: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+      }
+    } else {
+      http.Error(w, "Forbidden", http.StatusForbidden)
+      return
+    }
   }
-
-  w.Header().Set("Content-Type", ctype)
-  w.Header().Set("Cache-Control", "public, max-age=300")
-  w.Write(record.Data)
 }
 
 func post(w http.ResponseWriter, r *http.Request) {
@@ -171,8 +203,8 @@ func post(w http.ResponseWriter, r *http.Request) {
 func main() {
   http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
     switch r.Method {
-    case "GET":
-      get(w, r)
+    case "GET", "DELETE":
+      getdel(w, r, r.Method)
     case "POST":
       post(w, r)
     default:
