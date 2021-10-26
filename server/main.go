@@ -31,7 +31,7 @@ type Storage struct {
   FileName    string
   ContentType string
   Size        int
-  Data        []byte
+  Data        []byte `datastore:",noindex"`
 }
 
 func remoteaddr(r *http.Request) string {
