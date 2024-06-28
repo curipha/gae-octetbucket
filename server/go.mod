@@ -1,6 +1,6 @@
 module octetbucket
 
-go 1.21
+go 1.22
 
 require (
 	cloud.google.com/go/datastore v1.17.1
