@@ -3,6 +3,7 @@ package main
 import (
   "context"
   "crypto/sha256"
+  "errors"
   "fmt"
   "io/ioutil"
   "log"
@@ -25,6 +26,8 @@ const kind    = "Storage"
 const formarg = "file"
 
 const getpoint = "r"
+
+const maxbodysize = 1024 * 1024 + 64 * 1024 // 1MiB plus allowance for multipart headers
 
 type Storage struct {
   Created     time.Time
@@ -138,12 +141,21 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
 }
 
 func post(w http.ResponseWriter, r *http.Request) {
+  r.Body = http.MaxBytesReader(w, r.Body, maxbodysize)
+
   file, header, err := r.FormFile(formarg)
   if err != nil {
+    var maxerr *http.MaxBytesError
+    if errors.As(err, &maxerr) {
+      http.Error(w, "Request Entity Too Large", http.StatusRequestEntityTooLarge)
+      return
+    }
+
     log.Printf("Failed to parse a uploaded file: %v", err)
     http.Error(w, "Bad Request", http.StatusBadRequest)
     return
   }
+  defer file.Close()
 
   blob, err := ioutil.ReadAll(file)
   if err != nil {
