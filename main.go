@@ -106,6 +106,8 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
 
     w.Header().Set("Content-Type", ctype)
     w.Header().Set("Cache-Control", "public, max-age=300")
+    w.Header().Set("Content-Security-Policy", "sandbox")
+    w.Header().Set("X-Content-Type-Options", "nosniff")
     w.Write(record.Data)
     return
 
