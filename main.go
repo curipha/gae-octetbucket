@@ -34,7 +34,7 @@ const maxbodysize = 1024 * 1024 // 1MiB
 type Storage struct {
   Created     time.Time
   RemoteAddr  string
-  UserAgent   string
+  UserAgent   string `datastore:",noindex"`
   FileName    string
   ContentType string
   Size        int
