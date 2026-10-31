@@ -225,15 +225,23 @@ func main() {
     }
   })
 
-
   port := os.Getenv("PORT")
   if port == "" {
     port = "8080"
     log.Printf("Defaulting to port %s", port)
   }
 
+  server := &http.Server{
+    Addr:              ":" + port,
+    Handler:           nil,
+    ReadHeaderTimeout: 10 * time.Second, // Mitigate Slowloris
+    ReadTimeout:       30 * time.Second,
+    WriteTimeout:      30 * time.Second,
+    IdleTimeout:       60 * time.Second,
+  }
+
   log.Printf("Listening on port %s", port)
-  err = http.ListenAndServe(":" + port, nil)
+  err = server.ListenAndServe()
   if err != nil {
     log.Fatal(err)
   }
