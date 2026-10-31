@@ -5,7 +5,7 @@ import (
   "crypto/sha256"
   "errors"
   "fmt"
-  "io/ioutil"
+  "io"
   "log"
   "mime"
   "net/http"
@@ -158,7 +158,7 @@ func post(w http.ResponseWriter, r *http.Request) {
   }
   defer file.Close()
 
-  blob, err := ioutil.ReadAll(file)
+  blob, err := io.ReadAll(file)
   if err != nil {
     log.Printf("Failed to read a uploaded file: %v", err)
     http.Error(w, "Bad Request", http.StatusBadRequest)
