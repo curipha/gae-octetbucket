@@ -1,6 +1,7 @@
 package main
 
 import (
+  "bytes"
   "context"
   "crypto/sha256"
   "errors"
@@ -107,7 +108,8 @@ func getdel(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Cache-Control", "public, max-age=300")
     w.Header().Set("Content-Security-Policy", "sandbox")
     w.Header().Set("X-Content-Type-Options", "nosniff")
-    w.Write(record.Data)
+    w.Header().Set("ETag", `"` + key + `"`)
+    http.ServeContent(w, r, "", record.Created, bytes.NewReader(record.Data))
     return
 
   case http.MethodDelete:
