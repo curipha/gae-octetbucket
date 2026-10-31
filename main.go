@@ -15,7 +15,8 @@ import (
   "time"
 
   "cloud.google.com/go/datastore"
-  "google.golang.org/api/iterator"
+  "google.golang.org/grpc/codes"
+  "google.golang.org/grpc/status"
 )
 
 var projectid = os.Getenv("GOOGLE_CLOUD_PROJECT")
@@ -60,19 +61,6 @@ func validkey(key string) bool {
     }
   }
   return true
-}
-
-func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key) (bool, error) {
-  query := datastore.NewQuery(kind).Filter("__key__ =", key).Limit(1).KeysOnly()
-
-  _, err := client.Run(ctx, query).Next(nil)
-  if err == iterator.Done {
-    return false, nil
-  }
-  if err != nil {
-    return false, err
-  }
-  return true, nil
 }
 
 func getdel(w http.ResponseWriter, r *http.Request) {
@@ -182,31 +170,23 @@ func post(w http.ResponseWriter, r *http.Request) {
   ctx, cancel := context.WithTimeout(r.Context(), 10 * time.Second)
   defer cancel()
 
+  record := &Storage {
+    Created:     time.Now(),
+    RemoteAddr:  remoteaddr(r),
+    UserAgent:   strings.TrimSpace(r.Header.Get("User-Agent")),
+    FileName:    fname,
+    ContentType: ctype,
+    Size:        len(blob),
+    Data:        blob,
+  }
+
+  // Insert fails with AlreadyExists if the same content is already stored
   dskey := datastore.NameKey(kind, key, nil)
-  exist, err := keyexist(ctx, client, dskey)
-  if err != nil {
-    log.Printf("Failed to check the existence of the key: %v", err)
+  _, err = client.Mutate(ctx, datastore.NewInsert(dskey, record))
+  if err != nil && status.Code(err) != codes.AlreadyExists {
+    log.Printf("Failed to store the file to Datastore: %v", err)
     http.Error(w, "Internal Server Error", http.StatusInternalServerError)
     return
-  }
-  if !exist {
-    // Put new record iff no data exists
-    record := &Storage {
-      Created:     time.Now(),
-      RemoteAddr:  remoteaddr(r),
-      UserAgent:   strings.TrimSpace(r.Header.Get("User-Agent")),
-      FileName:    fname,
-      ContentType: ctype,
-      Size:        len(blob),
-      Data:        blob,
-    }
-
-    _, err = client.Put(ctx, dskey, record)
-    if err != nil {
-      log.Printf("Failed to store the file to Datastore: %v", err)
-      http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-      return
-    }
   }
 
   ext := path.Ext(fname)
