@@ -195,15 +195,7 @@ func post(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  ext := path.Ext(fname)
-  if ext == "" {
-    exts, err := mime.ExtensionsByType(ctype)
-    if err == nil && len(exts) > 0 {
-      ext = exts[0]
-    }
-  }
-
-  fmt.Fprintf(w, "https://%s/%s/%s%s\n", r.Host, getpoint, key, ext)
+  fmt.Fprintf(w, "https://%s/%s/%s%s\n", r.Host, getpoint, key, path.Ext(fname))
 }
 
 func main() {
