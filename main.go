@@ -62,12 +62,8 @@ func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key)
   return true, nil
 }
 
-func getdel(w http.ResponseWriter, r *http.Request, method string) {
-  dir, file := path.Split(r.URL.Path)
-  if strings.Trim(dir, "/") != getpoint {
-    http.NotFound(w, r)
-    return
-  }
+func getdel(w http.ResponseWriter, r *http.Request) {
+  file := r.PathValue("file")
   if file == "" {
     http.Error(w, "Bad Request", http.StatusBadRequest)
     return
@@ -103,8 +99,8 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
     return
   }
 
-  switch method {
-  case "GET":
+  switch r.Method {
+  case http.MethodGet, http.MethodHead:
     ctype := mime.TypeByExtension(ext)
 
     switch strings.SplitN(ctype, "/", 2)[0] {
@@ -123,7 +119,7 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
     w.Write(record.Data)
     return
 
-  case "DELETE":
+  case http.MethodDelete:
     if record.RemoteAddr == remoteaddr(r) {
       err = client.Delete(ctx, dskey)
       if err == nil {
@@ -232,16 +228,10 @@ func main() {
   }
   defer client.Close()
 
-  http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    switch r.Method {
-    case "GET", "DELETE":
-      getdel(w, r, r.Method)
-    case "POST":
-      post(w, r)
-    default:
-      http.Error(w, "Not Implemented", http.StatusNotImplemented)
-    }
-  })
+  mux := http.NewServeMux()
+  mux.HandleFunc("GET /" + getpoint + "/{file}", getdel) // also matches HEAD
+  mux.HandleFunc("DELETE /" + getpoint + "/{file}", getdel)
+  mux.HandleFunc("POST /upload{$}", post)
 
   port := os.Getenv("PORT")
   if port == "" {
@@ -251,7 +241,7 @@ func main() {
 
   server := &http.Server{
     Addr:              ":" + port,
-    Handler:           nil,
+    Handler:           mux,
     ReadHeaderTimeout: 10 * time.Second, // Mitigate Slowloris
     ReadTimeout:       30 * time.Second,
     WriteTimeout:      30 * time.Second,
