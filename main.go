@@ -71,7 +71,8 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
   key := file[:len(file) - len(ext)]
 
 
-  ctx := context.Background()
+  ctx, cancel := context.WithTimeout(r.Context(), 10 * time.Second)
+  defer cancel()
 
   // Check the existence firstly to reduce the cost (Key-only query is free!!)
   dskey := datastore.NameKey(kind, key, nil)
@@ -170,7 +171,8 @@ func post(w http.ResponseWriter, r *http.Request) {
   key := fmt.Sprintf("%.6x", sha256.Sum256(blob)) // 12 chars
 
 
-  ctx := context.Background()
+  ctx, cancel := context.WithTimeout(r.Context(), 10 * time.Second)
+  defer cancel()
 
   dskey := datastore.NameKey(kind, key, nil)
   if !keyexist(ctx, client, dskey) {
