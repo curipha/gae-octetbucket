@@ -88,26 +88,17 @@ func getdel(w http.ResponseWriter, r *http.Request) {
   ctx, cancel := context.WithTimeout(r.Context(), 10 * time.Second)
   defer cancel()
 
-  // Check the existence firstly to reduce the cost (Key-only query is free!!)
+  record := &Storage{}
   dskey := datastore.NameKey(kind, key, nil)
-  exist, err := keyexist(ctx, client, dskey)
-  if err != nil {
-    log.Printf("Failed to check the existence of the key: %v", err)
-    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-    return
-  }
-  if !exist {
+
+  err := client.Get(ctx, dskey, record)
+  if errors.Is(err, datastore.ErrNoSuchEntity) {
     http.NotFound(w, r)
     return
   }
-
-
-  record := &Storage{}
-
-  err = client.Get(ctx, dskey, record)
   if err != nil {
     log.Printf("Failed to get the file from Datastore: %v", err)
-    http.NotFound(w, r)
+    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
     return
   }
 
