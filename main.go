@@ -27,6 +27,7 @@ const formarg = "file"
 
 const getpoint = "r"
 
+const keylen = 12 // hex chars (= 6 bytes of SHA-256)
 const maxbodysize = 1024 * 1024 // 1MiB
 
 type Storage struct {
@@ -49,6 +50,18 @@ func remoteaddr(r *http.Request) string {
   return addr
 }
 
+func validkey(key string) bool {
+  if len(key) != keylen {
+    return false
+  }
+  for _, c := range key {
+    if !('0' <= c && c <= '9' || 'a' <= c && c <= 'f') {
+      return false
+    }
+  }
+  return true
+}
+
 func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key) (bool, error) {
   query := datastore.NewQuery(kind).Filter("__key__ =", key).Limit(1).KeysOnly()
 
@@ -64,14 +77,13 @@ func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key)
 
 func getdel(w http.ResponseWriter, r *http.Request) {
   file := r.PathValue("file")
-  if file == "" {
-    http.Error(w, "Bad Request", http.StatusBadRequest)
-    return
-  }
-
   ext := path.Ext(file)
   key := file[:len(file) - len(ext)]
 
+  if !validkey(key) {
+    http.NotFound(w, r)
+    return
+  }
 
   ctx, cancel := context.WithTimeout(r.Context(), 10 * time.Second)
   defer cancel()
@@ -174,8 +186,7 @@ func post(w http.ResponseWriter, r *http.Request) {
   fname := strings.TrimSpace(header.Filename)
   ctype := strings.TrimSpace(header.Header.Get("Content-Type"))
 
-  key := fmt.Sprintf("%.6x", sha256.Sum256(blob)) // 12 chars
-
+  key := fmt.Sprintf("%.*x", keylen / 2, sha256.Sum256(blob))
 
   ctx, cancel := context.WithTimeout(r.Context(), 10 * time.Second)
   defer cancel()
