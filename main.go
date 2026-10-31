@@ -137,9 +137,7 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
           record.Size,
         )
 
-        // This is not an error.
-        // Use http.Error here to just send the HTTP Status code and informational text back to users.
-        http.Error(w, "Accepted", http.StatusAccepted)
+        w.WriteHeader(http.StatusNoContent)
         return
       } else {
         log.Printf("Failed to delete the file from Datastore: %v", err)
