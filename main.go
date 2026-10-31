@@ -49,11 +49,17 @@ func remoteaddr(r *http.Request) string {
   return addr
 }
 
-func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key) bool {
+func keyexist(ctx context.Context, client *datastore.Client, key *datastore.Key) (bool, error) {
   query := datastore.NewQuery(kind).Filter("__key__ =", key).Limit(1).KeysOnly()
 
   _, err := client.Run(ctx, query).Next(nil)
-  return err != iterator.Done
+  if err == iterator.Done {
+    return false, nil
+  }
+  if err != nil {
+    return false, err
+  }
+  return true, nil
 }
 
 func getdel(w http.ResponseWriter, r *http.Request, method string) {
@@ -76,7 +82,13 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
 
   // Check the existence firstly to reduce the cost (Key-only query is free!!)
   dskey := datastore.NameKey(kind, key, nil)
-  if !keyexist(ctx, client, dskey) {
+  exist, err := keyexist(ctx, client, dskey)
+  if err != nil {
+    log.Printf("Failed to check the existence of the key: %v", err)
+    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    return
+  }
+  if !exist {
     http.NotFound(w, r)
     return
   }
@@ -84,7 +96,7 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
 
   record := &Storage{}
 
-  err := client.Get(ctx, dskey, record)
+  err = client.Get(ctx, dskey, record)
   if err != nil {
     log.Printf("Failed to get the file from Datastore: %v", err)
     http.NotFound(w, r)
@@ -175,7 +187,13 @@ func post(w http.ResponseWriter, r *http.Request) {
   defer cancel()
 
   dskey := datastore.NameKey(kind, key, nil)
-  if !keyexist(ctx, client, dskey) {
+  exist, err := keyexist(ctx, client, dskey)
+  if err != nil {
+    log.Printf("Failed to check the existence of the key: %v", err)
+    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+    return
+  }
+  if !exist {
     // Put new record iff no data exists
     record := &Storage {
       Created:     time.Now(),
