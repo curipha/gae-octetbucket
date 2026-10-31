@@ -65,6 +65,19 @@ func validkey(key string) bool {
   return true
 }
 
+func safeext(fname string) string {
+  ext := path.Ext(fname)
+  if len(ext) < 2 || len(ext) > 8 {
+    return ""
+  }
+  for _, c := range ext[1:] {
+    if !('0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
+      return ""
+    }
+  }
+  return ext
+}
+
 func getdel(w http.ResponseWriter, r *http.Request) {
   file := r.PathValue("file")
   ext := path.Ext(file)
@@ -196,7 +209,7 @@ func post(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  fmt.Fprintf(w, "https://%s/%s/%s%s\n", r.Host, getpoint, key, path.Ext(fname))
+  fmt.Fprintf(w, "https://%s/%s/%s%s\n", r.Host, getpoint, key, safeext(fname))
 }
 
 func main() {
