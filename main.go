@@ -19,6 +19,8 @@ import (
 
 var projectid = os.Getenv("GOOGLE_CLOUD_PROJECT")
 
+var client *datastore.Client
+
 const kind    = "Storage"
 const formarg = "file"
 
@@ -67,12 +69,6 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
 
 
   ctx := context.Background()
-  client, err := datastore.NewClient(ctx, projectid)
-  if err != nil {
-    log.Printf("Failed to create client: %v", err)
-    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-    return
-  }
 
   // Check the existence firstly to reduce the cost (Key-only query is free!!)
   dskey := datastore.NameKey(kind, key, nil)
@@ -84,7 +80,7 @@ func getdel(w http.ResponseWriter, r *http.Request, method string) {
 
   record := &Storage{}
 
-  err = client.Get(ctx, dskey, record)
+  err := client.Get(ctx, dskey, record)
   if err != nil {
     log.Printf("Failed to get the file from Datastore: %v", err)
     http.NotFound(w, r)
@@ -163,12 +159,6 @@ func post(w http.ResponseWriter, r *http.Request) {
 
 
   ctx := context.Background()
-  client, err := datastore.NewClient(ctx, projectid)
-  if err != nil {
-    log.Printf("Failed to create client: %v", err)
-    http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-    return
-  }
 
   dskey := datastore.NameKey(kind, key, nil)
   if !keyexist(ctx, client, dskey) {
@@ -203,6 +193,15 @@ func post(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+  var err error
+  log.Printf("Initialize Datastore client for project: %s", projectid)
+  client, err = datastore.NewClient(context.Background(), projectid)
+  if err != nil {
+    log.Fatalf("Datastore client initialization failed: %v", err)
+    return
+  }
+  defer client.Close()
+
   http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
     switch r.Method {
     case "GET", "DELETE":
@@ -222,7 +221,7 @@ func main() {
   }
 
   log.Printf("Listening on port %s", port)
-  err := http.ListenAndServe(":" + port, nil)
+  err = http.ListenAndServe(":" + port, nil)
   if err != nil {
     log.Fatal(err)
   }
