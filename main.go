@@ -234,7 +234,6 @@ func main() {
   mux.HandleFunc("GET /" + getpoint + "/{file}", getdel) // also matches HEAD
   mux.HandleFunc("DELETE /" + getpoint + "/{file}", getdel)
   mux.HandleFunc("POST /upload", post)
-  mux.HandleFunc("GET /", http.NotFound)
 
   port := os.Getenv("PORT")
   if port == "" {
