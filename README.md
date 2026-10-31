@@ -10,6 +10,6 @@ Deploy
 --------------------
 ```bash
 git clone https://github.com/curipha/gae-octetbucket.git
-cd gae-octetbucket/server
+cd gae-octetbucket
 gcloud --quiet app deploy --no-cache
 ```
