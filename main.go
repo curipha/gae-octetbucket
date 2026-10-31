@@ -226,7 +226,6 @@ func main() {
   client, err = datastore.NewClient(context.Background(), projectid)
   if err != nil {
     log.Fatalf("Datastore client initialization failed: %v", err)
-    return
   }
   defer client.Close()
 
