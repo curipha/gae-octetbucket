@@ -163,6 +163,10 @@ func post(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "Bad Request", http.StatusBadRequest)
     return
   }
+  if len(blob) == 0 {
+    http.Error(w, "Bad Request: empty file", http.StatusBadRequest)
+    return
+  }
 
   fname := strings.TrimSpace(header.Filename)
   ctype := strings.TrimSpace(header.Header.Get("Content-Type"))
