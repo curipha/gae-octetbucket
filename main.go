@@ -6,6 +6,7 @@ import (
   "crypto/sha256"
   "errors"
   "fmt"
+  "hash/crc32"
   "io"
   "log"
   "mime"
@@ -108,7 +109,7 @@ func getdel(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Cache-Control", "public, max-age=300")
     w.Header().Set("Content-Security-Policy", "sandbox")
     w.Header().Set("X-Content-Type-Options", "nosniff")
-    w.Header().Set("ETag", `"` + key + `"`)
+    w.Header().Set("ETag", fmt.Sprintf(`"%s-%08x"`, key, crc32.ChecksumIEEE([]byte(ctype))))
     http.ServeContent(w, r, "", record.Created, bytes.NewReader(record.Data))
     return
 
