@@ -27,7 +27,7 @@ const formarg = "file"
 
 const getpoint = "r"
 
-const maxbodysize = 1024 * 1024 + 64 * 1024 // 1MiB plus allowance for multipart headers
+const maxbodysize = 1024 * 1024 // 1MiB
 
 type Storage struct {
   Created     time.Time
