@@ -206,7 +206,7 @@ func post(w http.ResponseWriter, r *http.Request) {
     _, err = client.Put(ctx, dskey, record)
     if err != nil {
       log.Printf("Failed to store the file to Datastore: %v", err)
-      http.Error(w, "Bad Request", http.StatusBadRequest)
+      http.Error(w, "Internal Server Error", http.StatusInternalServerError)
       return
     }
   }
